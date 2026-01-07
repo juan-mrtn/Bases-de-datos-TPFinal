@@ -5,24 +5,34 @@
 -- Resta compras confirmadas (individuales y combos) a los ingresos de proveedores.
 
 CREATE OR REPLACE VIEW v_stock_actual AS
+WITH stock_base AS (
+    -- Calculamos el stock físico real de cada variante individual
+    SELECT 
+        pv.id AS producto_variante_id,
+        COALESCE((SELECT SUM(cantidad) FROM compra_proveedor WHERE producto_variante_id = pv.id), 0) -
+        COALESCE((
+            SELECT SUM(lc.cantidad) 
+            FROM linea_de_compra lc
+            JOIN compra c ON lc.compra_id = c.id
+            WHERE lc.producto_variante_id = pv.id AND c.estado_pago = 'confirmado'
+        ), 0) AS disponible
+    FROM producto_variante pv
+)
 SELECT 
-    pv.id AS producto_variante_id,
-    (
-        -- Ingresos totales desde proveedores
-        COALESCE((SELECT SUM(cp.cantidad) FROM compra_proveedor cp WHERE cp.producto_variante_id = pv.id), 0) 
-        - 
-        -- Egresos por ventas individuales confirmadas
-        COALESCE((SELECT SUM(lc.cantidad) FROM linea_de_compra lc 
-                  JOIN compra c ON lc.compra_id = c.id 
-                  WHERE lc.producto_variante_id = pv.id AND c.estado_pago = 'confirmado'), 0)
-        -
-        -- Egresos por ventas de combos confirmadas (desglose de componentes)
-        COALESCE((SELECT SUM(lc.cantidad * ci.cantidad) FROM linea_de_compra lc
-                  JOIN compra c ON lc.compra_id = c.id
-                  JOIN "ComboItem" ci ON lc.combo_id = ci.combo_id
-                  WHERE ci.producto_variante_id = pv.id AND c.estado_pago = 'confirmado'), 0)
-    ) AS stock_disponible
-FROM producto_variante pv;
+    sb.producto_variante_id,
+    CASE 
+        -- Si la variante es un representante de COMBO
+        WHEN EXISTS (SELECT 1 FROM "Combo" WHERE producto_variante_id = sb.producto_variante_id) THEN
+            (
+                SELECT MIN(sb_comp.disponible / ci.cantidad)
+                FROM "ComboItem" ci
+                JOIN stock_base sb_comp ON ci.producto_variante_id = sb_comp.producto_variante_id
+                WHERE ci.combo_id = (SELECT id FROM "Combo" WHERE producto_variante_id = sb.producto_variante_id)
+            )
+        -- Si es un producto normal
+        ELSE sb.disponible
+    END AS stock_disponible
+FROM stock_base sb;
 
 -- ==========================================================
 -- 2. VISTA: Catálogo para el Usuario (Usa la vista de stock)
@@ -39,7 +49,7 @@ SELECT
     END AS estado_disponibilidad
 FROM producto_variante pv
 JOIN producto p ON pv.producto_id = p.id
-JOIN v_stock_actual s ON pv.id = s.producto_variante_id; -- Unión con la vista de cálculo
+JOIN v_stock_actual s ON pv.id = s.producto_variante_id;
 
 -- ==========================================================
 -- 3. STORED PROCEDURE: Finalizar Compra
