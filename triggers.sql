@@ -24,11 +24,14 @@ BEGIN
     AND c.estado_pago = 'confirmado';
 
     -- 3. Total vendido dentro de COMBOS (Ventas confirmadas)
-    -- Buscamos en LineaDeCompra los combos y miramos en ComboItem cuántas unidades de esta variante traían
+    -- Buscamos si la variante de la línea de compra pertenece a un combo
     SELECT COALESCE(SUM(lc.cantidad * ci.cantidad), 0) INTO v_egresos_combos
     FROM linea_de_compra lc
     JOIN compra c ON lc.compra_id = c.id
-    JOIN "ComboItem" ci ON lc.combo_id = ci.combo_id
+    -- Unimos la línea de compra con la tabla combo a través de la variante representante
+    JOIN combo co ON lc.producto_variante_id = co.producto_variante_id
+    -- Unimos con los ítems del combo para saber qué componentes tiene
+    JOIN combo_item ci ON co.id = ci.combo_id
     WHERE ci.producto_variante_id = p_variante_id
     AND c.estado_pago = 'confirmado';
 
@@ -46,32 +49,35 @@ RETURNS TRIGGER AS $$
 DECLARE
     v_stock_actual INT;
     v_item_combo RECORD;
+    v_combo_id VARCHAR;
 BEGIN
-    -- CASO A: El usuario agrega un producto individual
-    IF NEW.producto_variante_id IS NOT NULL THEN
-        v_stock_actual := fn_obtener_stock_real(NEW.producto_variante_id);
-        IF v_stock_actual < NEW.cantidad THEN
-            RAISE EXCEPTION 'No hay stock suficiente para el producto %. Disponible: %', 
-                            NEW.producto_variante_id, v_stock_actual;
-        END IF;
+    -- Buscamos si la variante que se intenta agregar es un COMBO
+    SELECT id INTO v_combo_id FROM combo WHERE producto_variante_id = NEW.producto_variante_id;
 
-    -- CASO B: El usuario agrega un Combo
-    ELSIF NEW.combo_id IS NOT NULL THEN
-        -- Debemos validar cada componente del combo
-        FOR v_item_combo IN (SELECT producto_variante_id, cantidad FROM "ComboItem" WHERE combo_id = NEW.combo_id) LOOP
+    -- CASO A: Es un Combo (v_combo_id no es nulo)
+    IF v_combo_id IS NOT NULL THEN
+        FOR v_item_combo IN (SELECT producto_variante_id, cantidad FROM combo_item WHERE combo_id = v_combo_id) LOOP
             v_stock_actual := fn_obtener_stock_real(v_item_combo.producto_variante_id);
             IF v_stock_actual < (v_item_combo.cantidad * NEW.cantidad) THEN
                 RAISE EXCEPTION 'Stock insuficiente en componentes del combo. La variante % solo tiene % unidades.', 
                                 v_item_combo.producto_variante_id, v_stock_actual;
             END IF;
         END LOOP;
+
+    -- CASO B: Es un producto individual
+    ELSE
+        v_stock_actual := fn_obtener_stock_real(NEW.producto_variante_id);
+        IF v_stock_actual < NEW.cantidad THEN
+            RAISE EXCEPTION 'No hay stock suficiente para el producto %. Disponible: %', 
+                            NEW.producto_variante_id, v_stock_actual;
+        END IF;
     END IF;
 
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_carrito_item_valida_stock
+CREATE OR REPLACE TRIGGER trg_carrito_item_valida_stock
 BEFORE INSERT OR UPDATE ON carrito_item
 FOR EACH ROW EXECUTE FUNCTION fn_trg_validar_disponibilidad();
 
@@ -87,42 +93,82 @@ DECLARE
     v_linea RECORD;
     v_stock_actual INT;
     v_comp RECORD;
+    v_combo_id VARCHAR;
 BEGIN
-    -- Se dispara solo cuando el pago pasa a ser 'confirmado'
     IF NEW.estado_pago = 'confirmado' AND OLD.estado_pago <> 'confirmado' THEN
         
-        -- Recorremos cada ítem de la compra que se quiere confirmar
         FOR v_linea IN SELECT * FROM linea_de_compra WHERE compra_id = NEW.id LOOP
             
-            -- 1. Si es producto individual
-            IF v_linea.producto_variante_id IS NOT NULL THEN
+            -- Verificamos si esta línea de compra es un combo
+            SELECT id INTO v_combo_id FROM combo WHERE producto_variante_id = v_linea.producto_variante_id;
+
+            IF v_combo_id IS NOT NULL THEN
+                -- Es un Combo: Validamos sus componentes
+                FOR v_comp IN (SELECT producto_variante_id, cantidad FROM combo_item WHERE combo_id = v_combo_id) LOOP
+                    v_stock_actual := fn_obtener_stock_real(v_comp.producto_variante_id);
+                    IF v_stock_actual < (v_comp.cantidad * v_linea.cantidad) THEN
+                        RAISE EXCEPTION 'No se puede confirmar la compra. El componente % del combo no tiene stock suficiente.', 
+                                        v_comp.producto_variante_id;
+                    END IF;
+                END LOOP;
+            ELSE
+                -- Es producto individual: Validamos su stock
                 v_stock_actual := fn_obtener_stock_real(v_linea.producto_variante_id);
                 IF v_stock_actual < v_linea.cantidad THEN
                     RAISE EXCEPTION 'No se puede confirmar la compra. El producto % se quedó sin stock (Disponible: %)', 
                                     v_linea.producto_variante_id, v_stock_actual;
                 END IF;
-
-            -- 2. Si es un Combo
-            ELSIF v_linea.combo_id IS NOT NULL THEN
-                FOR v_comp IN (SELECT producto_variante_id, cantidad FROM "ComboItem" WHERE combo_id = v_linea.combo_id) LOOP
-                    v_stock_actual := fn_obtener_stock_real(v_comp.producto_variante_id);
-                    IF v_stock_actual < (v_comp.cantidad * v_linea.cantidad) THEN
-                        RAISE EXCEPTION 'No se puede confirmar la compra. Un componente del combo (%) no tiene stock suficiente.', 
-                                        v_comp.producto_variante_id;
-                    END IF;
-                END LOOP;
             END IF;
             
         END LOOP;
     END IF;
 
-    -- Si pasó todas las validaciones, permitimos el cambio de estado.
-    -- Al ser 'confirmado', la función fn_obtener_stock_real ahora incluirá esta compra 
-    -- en la resta, haciendo que el stock baje "virtualmente" para el resto del sistema.
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_compra_validar_stock_final
+CREATE OR REPLACE TRIGGER trg_compra_validar_stock_final
 BEFORE UPDATE OF estado_pago ON compra
 FOR EACH ROW EXECUTE FUNCTION fn_trg_validar_confirmacion_pago();
+
+
+-- Esta función simplemente suma los subtotales (cantidad * precio_unitario) de los ítems asociados a un carrito.
+CREATE OR REPLACE FUNCTION fn_calcular_total_carrito(p_carrito_id VARCHAR) 
+RETURNS DECIMAL AS $$
+DECLARE
+    v_total DECIMAL;
+BEGIN
+    SELECT COALESCE(SUM(cantidad * precio_unitario), 0) INTO v_total
+    FROM carrito_item
+    WHERE carrito_id = p_carrito_id;
+    
+    RETURN v_total;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger que actualiza el total del carrito cada vez que se inserta, actualiza o elimina un ítem.
+-- Para que el campo total de la tabla carrito esté siempre actualizado, creamos un trigger que se dispare cada vez que agregas, borras o modificas un ítem en carrito_item.
+CREATE OR REPLACE FUNCTION fn_trg_actualizar_total_carrito() 
+RETURNS TRIGGER AS $$
+DECLARE
+    v_carrito_id VARCHAR;
+BEGIN
+    -- Identificamos el ID del carrito afectado (funciona para INSERT, UPDATE y DELETE)
+    IF (TG_OP = 'DELETE') THEN
+        v_carrito_id := OLD.carrito_id;
+    ELSE
+        v_carrito_id := NEW.carrito_id;
+    END IF;
+
+    -- Actualizamos el total en la tabla padre (carrito)
+    UPDATE carrito 
+    SET total = fn_calcular_total_carrito(v_carrito_id)
+    WHERE id = v_carrito_id;
+
+    RETURN NULL; -- En triggers AFTER el valor de retorno no afecta a la fila
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_actualizar_total_carrito
+AFTER INSERT OR UPDATE OR DELETE ON carrito_item
+FOR EACH ROW EXECUTE FUNCTION fn_trg_actualizar_total_carrito();
