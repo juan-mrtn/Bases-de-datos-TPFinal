@@ -32,7 +32,7 @@ GRANT SELECT ON v_catalogo_publico TO rol_cliente;
 GRANT SELECT ON v_stock_actual TO rol_cliente; -- Necesaria para que el trigger valide stock
 
 -- B. Tablas de Lectura (Para ver detalles de productos y sus compras)
-GRANT SELECT ON producto, producto_variante, "Combo", "ComboItem" TO rol_cliente;
+GRANT SELECT ON producto, producto_variante, "combo", "combo_item" TO rol_cliente;
 GRANT SELECT ON compra, linea_de_compra TO rol_cliente;
 
 -- C. Gestión de Carrito y Cuenta (Escritura controlada)
