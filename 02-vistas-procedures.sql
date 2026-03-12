@@ -103,3 +103,38 @@ JOIN usuario u ON c.usuario_id = u.id
 JOIN carrito_item ci ON c.id = ci.carrito_id
 JOIN producto_variante pv ON ci.producto_variante_id = pv.id
 JOIN producto p ON pv.producto_id = p.id;
+
+-- ==========================================================
+-- 5. VISTA: Registro de Compras a Proveedores
+-- ==========================================================
+
+-- "Este procedimiento responde a la necesidad de gestión de inventario por parte del administrador, permitiendo el ingreso de mercadería de forma intuitiva
+-- mediante parámetros de negocio (Nombre y Talle) en lugar de claves técnicas (IDs), garantizando la trazabilidad de la entrada de stock."
+
+CREATE OR REPLACE PROCEDURE sp_registrar_ingreso_stock(
+    p_nombre_producto VARCHAR,
+    p_talle VARCHAR,
+    p_proveedor_id VARCHAR,
+    p_cantidad INT,
+    p_costo_unitario DECIMAL
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_variante_id VARCHAR;
+BEGIN
+    -- Buscar la variante correspondiente
+    SELECT pv.id INTO v_variante_id
+    FROM producto_variante pv
+    JOIN producto p ON pv.producto_id = p.id
+    WHERE p.nombre = p_nombre_producto AND pv.talle = p_talle;
+
+    IF v_variante_id IS NULL THEN
+        RAISE EXCEPTION 'No se encontró la variante para % en talle %', p_nombre_producto, p_talle;
+    END IF;
+
+    -- Insertar el registro de compra al proveedor
+    INSERT INTO compra_proveedor (id, proveedor_id, producto_variante_id, cantidad, costo, fecha)
+    VALUES ('CP-'||CAST(floor(random()*100000) AS VARCHAR), p_proveedor_id, v_variante_id, p_cantidad, p_costo_unitario, CURRENT_DATE);
+END;
+$$;

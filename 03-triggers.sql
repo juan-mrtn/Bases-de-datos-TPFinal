@@ -82,7 +82,7 @@ BEFORE INSERT OR UPDATE ON carrito_item
 FOR EACH ROW EXECUTE FUNCTION fn_trg_validar_disponibilidad();
 
 -- ==========================================================
--- TRIGGER: trg_validar_stock_antes_de_confirmar
+-- 3.TRIGGER: trg_validar_stock_antes_de_confirmar
 -- ==========================================================
 -- Reemplaza la reducción física de stock. 
 -- Valida que al momento de confirmar el pago, todavía exista mercadería.
@@ -146,6 +146,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- ==========================================================
+-- 4.TRIGGER: trg_actualizar_total_carrito
+-- ==========================================================
 -- Trigger que actualiza el total del carrito cada vez que se inserta, actualiza o elimina un ítem.
 -- Para que el campo total de la tabla carrito esté siempre actualizado, creamos un trigger que se dispare cada vez que agregas, borras o modificas un ítem en carrito_item.
 CREATE OR REPLACE FUNCTION fn_trg_actualizar_total_carrito() 
@@ -172,3 +175,87 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_actualizar_total_carrito
 AFTER INSERT OR UPDATE OR DELETE ON carrito_item
 FOR EACH ROW EXECUTE FUNCTION fn_trg_actualizar_total_carrito();
+
+-- ==========================================================
+-- 5.TRIGGER: trg_validar_promo
+-- ==========================================================
+-- Trigger para validar promociones activas al agregar un ítem al carrito
+CREATE OR REPLACE FUNCTION fn_trg_validar_promo() 
+RETURNS TRIGGER AS $$
+DECLARE
+    v_fecha_fin TIMESTAMP;
+BEGIN
+    -- Solo actuamos si el ítem tiene una promoción asociada
+    IF NEW.promocion_id IS NOT NULL THEN
+        
+        -- Buscamos la fecha de finalización de dicha promoción
+        SELECT fecha_fin INTO v_fecha_fin 
+        FROM promocion 
+        WHERE id = NEW.promocion_id;
+
+        -- Validación: Si la fecha actual es posterior al fin de la promo, bloqueamos
+        IF v_fecha_fin < CURRENT_TIMESTAMP THEN
+            RAISE EXCEPTION 'Operación rechazada: La promoción % ha expirado el %.', 
+                            NEW.promocion_id, v_fecha_fin;
+        END IF;
+        
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_validar_promo
+BEFORE INSERT OR UPDATE ON carrito_item
+FOR EACH ROW EXECUTE FUNCTION fn_trg_validar_promo();
+
+-- ==========================================================
+-- 6.TRIGGER: trg_validar_cliente_opinion
+-- ==========================================================
+-- Trigger para validar que un cliente solo pueda opinar sobre un producto si lo ha comprado
+CREATE OR REPLACE FUNCTION fn_trg_validar_cliente_opinion() 
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Verificamos si el usuario ha comprado la variante sobre la que quiere opinar
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM linea_de_compra lc
+        JOIN compra c ON lc.compra_id = c.id
+        WHERE c.usuario_id = NEW.usuario_id 
+        AND lc.producto_variante_id = NEW.producto_variante_id
+        AND c.estado_pago = 'confirmado'
+    ) THEN
+        RAISE EXCEPTION 'No puedes opinar sobre este producto porque no lo has comprado.';
+    END IF;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_validar_cliente_opinion
+BEFORE INSERT ON opinion
+FOR EACH ROW EXECUTE FUNCTION fn_trg_validar_cliente_opinion();
+
+-- ==========================================================
+-- 7.TRIGGER: trg_validar_favorito
+-- ==========================================================
+-- Trigger para validar que un cliente no agregue un producto a favoritos dos veces.
+CREATE OR REPLACE FUNCTION fn_trg_validar_favorito()
+RETURNS TRIGGER AS $$
+BEGIN
+    -- Verificamos si el usuario ya tiene este producto variante en favoritos
+    IF EXISTS (
+        SELECT 1 
+        FROM favorito
+        WHERE usuario_id = NEW.usuario_id
+        AND producto_variante_id = NEW.producto_variante_id
+    ) THEN
+        RAISE EXCEPTION 'Este producto ya está en tus favoritos.';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_validar_favorito
+BEFORE INSERT ON favorito
+FOR EACH ROW EXECUTE FUNCTION fn_trg_validar_favorito();
