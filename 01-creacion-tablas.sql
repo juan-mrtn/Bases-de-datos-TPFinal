@@ -42,6 +42,7 @@ CREATE TABLE producto_variante (
     material VARCHAR(30),
     talle VARCHAR(4),
     color VARCHAR(30),
+    imagen_url VARCHAR(255),
     CONSTRAINT fk_producto FOREIGN KEY (producto_id) REFERENCES producto(id),
     CONSTRAINT fk_promocion FOREIGN KEY (promocion_id) REFERENCES promocion(id)
 );
