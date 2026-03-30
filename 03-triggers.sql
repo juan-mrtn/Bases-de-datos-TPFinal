@@ -172,7 +172,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_actualizar_total_carrito
+CREATE OR REPLACE TRIGGER trg_actualizar_total_carrito
 AFTER INSERT OR UPDATE OR DELETE ON carrito_item
 FOR EACH ROW EXECUTE FUNCTION fn_trg_actualizar_total_carrito();
 
@@ -205,7 +205,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_validar_promo
+CREATE OR REPLACE TRIGGER trg_validar_promo
 BEFORE INSERT OR UPDATE ON carrito_item
 FOR EACH ROW EXECUTE FUNCTION fn_trg_validar_promo();
 
@@ -232,7 +232,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_validar_cliente_opinion
+CREATE OR REPLACE TRIGGER trg_validar_cliente_opinion
 BEFORE INSERT ON opinion
 FOR EACH ROW EXECUTE FUNCTION fn_trg_validar_cliente_opinion();
 
@@ -256,6 +256,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_validar_favorito
+CREATE OR REPLACE TRIGGER trg_validar_favorito
 BEFORE INSERT ON favorito
 FOR EACH ROW EXECUTE FUNCTION fn_trg_validar_favorito();
