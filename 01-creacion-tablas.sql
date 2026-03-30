@@ -41,6 +41,7 @@ CREATE TABLE producto_variante (
     precio DECIMAL(12, 2) NOT NULL CHECK (precio >= 0),
     material VARCHAR(30),
     talle VARCHAR(4),
+    color VARCHAR(30),
     CONSTRAINT fk_producto FOREIGN KEY (producto_id) REFERENCES producto(id),
     CONSTRAINT fk_promocion FOREIGN KEY (promocion_id) REFERENCES promocion(id)
 );
