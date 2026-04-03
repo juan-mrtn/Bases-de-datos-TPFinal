@@ -138,3 +138,40 @@ BEGIN
     VALUES ('CP-'||CAST(floor(random()*100000) AS VARCHAR), p_proveedor_id, v_variante_id, p_cantidad, p_costo_unitario, CURRENT_DATE);
 END;
 $$;
+
+-- ==========================================================
+-- VISTA 6: Detalle de Producto (Para la página individual)
+-- ==========================================================
+CREATE OR REPLACE VIEW v_producto_detalle AS
+SELECT 
+    pv.id AS variante_id,
+    p.id AS producto_id,
+    p.nombre,
+    p.descripcion,
+    p.codigo,
+    pv.precio,
+    pv.material,
+    pv.talle,
+    pv.color,
+    pv.imagen_url AS imagen_principal,
+    fn_obtener_stock_real(pv.id) AS stock_disponible,
+    
+    -- Agrupamos todas las fotos de la galería en una lista (Array) de PostgreSQL
+    COALESCE(ARRAY_AGG(i.url_imagen) FILTER (WHERE i.url_imagen IS NOT NULL), '{}') AS galeria_imagenes,
+    
+    -- Traemos datos de promoción solo si está vigente el día de hoy
+    promo.tipo AS tipo_promocion,
+    promo.descuento AS valor_descuento
+
+FROM producto_variante pv
+JOIN producto p ON pv.producto_id = p.id
+LEFT JOIN imagen i ON pv.id = i.producto_variante_id
+LEFT JOIN promocion promo ON pv.promocion_id = promo.id 
+    AND CURRENT_DATE BETWEEN promo.fecha_inicio AND promo.fecha_fin
+    
+-- Como usamos ARRAY_AGG (función de agregación), debemos agrupar por el resto de las columnas
+GROUP BY 
+    pv.id, p.id, p.nombre, p.descripcion, p.codigo, pv.precio, 
+    pv.material, pv.talle, pv.color, pv.imagen_url, 
+    promo.tipo, promo.descuento;
+--Se utiliza: SELECT * FROM v_producto_detalle WHERE variante_id = 'V1-B-M';
