@@ -90,11 +90,14 @@ CREATE TABLE compra_proveedor (
 CREATE TABLE direccion (
     id VARCHAR PRIMARY KEY,
     usuario_id VARCHAR NOT NULL,
+    titulo VARCHAR(50) DEFAULT 'Mi Dirección',
     calle VARCHAR(30) NOT NULL,
     numero VARCHAR(30),
+    departamento VARCHAR(50),
     codigo_postal VARCHAR(5) NOT NULL,
     ciudad VARCHAR(50) NOT NULL,
     provincia VARCHAR(50) NOT NULL,
+    principal BOOLEAN DEFAULT FALSE,
     CONSTRAINT fk_usuario_dir FOREIGN KEY (usuario_id) REFERENCES usuario(id)
 );
 
