@@ -25,7 +25,33 @@ FROM producto_variante pv
 JOIN producto p ON pv.producto_id = p.id
 JOIN v_stock_actual s ON pv.id = s.producto_variante_id;
 
+-- ==========================================================
+-- 2. VISTA: Catálogo para el Usuario (Evolucionada para el Grid)
+-- ==========================================================
+CREATE OR REPLACE VIEW v_catalogo_publico AS
+SELECT 
+    p.id AS producto_id,
+    p.nombre AS producto,
+    
+    -- Sumamos el stock de todas las variantes (usando tu vista v_stock_actual)
+    COALESCE(SUM(s.stock_disponible), 0) AS stock_total,
+    
+    -- El orden prioritario (0 = con stock, 1 = al fondo)
+    CASE 
+        WHEN COALESCE(SUM(s.stock_disponible), 0) > 0 THEN 0 
+        ELSE 1 
+    END AS prioridad,
+    
+    -- Mantenemos tu columna original intacta, pero evaluando el total
+    CASE 
+        WHEN COALESCE(SUM(s.stock_disponible), 0) > 0 THEN 'Disponible' 
+        ELSE 'Sin Stock' 
+    END AS estado_disponibilidad
 
+FROM producto p
+LEFT JOIN producto_variante pv ON p.id = pv.producto_id
+LEFT JOIN v_stock_actual s ON pv.id = s.producto_variante_id
+GROUP BY p.id, p.nombre;
 -- ==========================================================
 -- 3. STORED PROCEDURE: Finalizar Compra
 -- ==========================================================
