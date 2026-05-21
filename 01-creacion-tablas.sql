@@ -1,18 +1,40 @@
--- 1. Creación de la base de datos
--- CREATE DATABASE gestion_comercio;
+-- ==========================================================
+-- SCRIPT 01: 01-creacion-tablas.sql
+-- Purpose: Define the immutable storage environment and base tables.
+-- ==========================================================
 
 BEGIN;
 
--- 2. Creacion de tipos de datos ENUM
+-- 1. DROP EXISTING TABLES AND TYPES TO ENSURE IDEMPOTENCY
+DROP TABLE IF EXISTS combo_item CASCADE;
+DROP TABLE IF EXISTS combo CASCADE;
+DROP TABLE IF EXISTS linea_de_compra CASCADE;
+DROP TABLE IF EXISTS compra CASCADE;
+DROP TABLE IF EXISTS carrito_item CASCADE;
+DROP TABLE IF EXISTS carrito CASCADE;
+DROP TABLE IF EXISTS favorito CASCADE;
+DROP TABLE IF EXISTS opinion CASCADE;
+DROP TABLE IF EXISTS direccion CASCADE;
+DROP TABLE IF EXISTS compra_proveedor CASCADE;
+DROP TABLE IF EXISTS proveedor CASCADE;
+DROP TABLE IF EXISTS usuario CASCADE;
+DROP TABLE IF EXISTS imagen CASCADE;
+DROP TABLE IF EXISTS producto_variante CASCADE;
+DROP TABLE IF EXISTS promocion CASCADE;
+DROP TABLE IF EXISTS producto CASCADE;
 
-CREATE TYPE tipo_promocion AS ENUM ('Descuento', '2x1');
-CREATE TYPE estado_pago AS ENUM ('inactivo', 'procesando', 'confirmado', 'rechazado');
+DROP TYPE IF EXISTS tipo_promocion CASCADE;
+DROP TYPE IF EXISTS estado_pago CASCADE;
+DROP TYPE IF EXISTS estado_carrito CASCADE;
+DROP TYPE IF EXISTS rol_usuario CASCADE;
+
+-- 2. CREATE SYSTEM ENUM TYPES
+CREATE TYPE tipo_promocion AS ENUM ('descuento', '2x1');
+CREATE TYPE estado_pago AS ENUM ('procesando', 'confirmado', 'rechazado');
 CREATE TYPE estado_carrito AS ENUM ('abierto', 'confirmado', 'cancelado');
 CREATE TYPE rol_usuario AS ENUM ('cliente', 'admin');
 
--- 3. Definición de Tablas y Dominios
-
--- Tabla: Categorías (Independiente)
+-- 3. CREATE RELATIONAL DDL TABLES (TOPOLOGICAL ORDER)
 
 -- Tabla: Producto
 CREATE TABLE producto (
@@ -28,7 +50,7 @@ CREATE TABLE promocion (
     tipo tipo_promocion NOT NULL,
     descripcion TEXT,
     fecha_inicio DATE NOT NULL,
-    fecha_fin DATE NOT NULL CHECK (fecha_fin > fecha_inicio),
+    fecha_fin DATE NOT NULL,
     descuento DECIMAL(10, 2) CHECK (descuento >= 0),
     CONSTRAINT check_fechas CHECK (fecha_fin >= fecha_inicio)
 );
@@ -40,7 +62,7 @@ CREATE TABLE producto_variante (
     promocion_id VARCHAR,
     precio DECIMAL(12, 2) NOT NULL CHECK (precio >= 0),
     material VARCHAR(30),
-    talle VARCHAR(4),
+    talle VARCHAR(10),
     color VARCHAR(30),
     imagen_url VARCHAR(255),
     CONSTRAINT fk_producto FOREIGN KEY (producto_id) REFERENCES producto(id),
@@ -51,17 +73,16 @@ CREATE TABLE producto_variante (
 CREATE TABLE imagen (
     id VARCHAR PRIMARY KEY,
     producto_variante_id VARCHAR NOT NULL,
-    url_imagen TEXT NOT NULL, -- Se usa URL o path por eficiencia
+    url_imagen TEXT NOT NULL,
     CONSTRAINT fk_variante_imagen FOREIGN KEY (producto_variante_id) REFERENCES producto_variante(id)
 );
-
 
 -- Tabla: Usuario
 CREATE TABLE usuario (
     id VARCHAR(50) PRIMARY KEY,
     nombre VARCHAR(30) NOT NULL,
-    email VARCHAR(30) UNIQUE NOT NULL,
-    password VARCHAR(30) NOT NULL,
+    email VARCHAR(50) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
     rol rol_usuario DEFAULT 'cliente',
     suscrito BOOLEAN DEFAULT FALSE
 );
@@ -69,11 +90,11 @@ CREATE TABLE usuario (
 -- Tabla: Proveedor
 CREATE TABLE proveedor (
     id VARCHAR PRIMARY KEY,
-    nombre VARCHAR(30) NOT NULL,
+    nombre VARCHAR(50) NOT NULL,
     contacto TEXT
 );
 
--- Tabla: CompraProveedor (N a N o Histórico de costos)
+-- Tabla: CompraProveedor
 CREATE TABLE compra_proveedor (
     id VARCHAR PRIMARY KEY,
     proveedor_id VARCHAR NOT NULL,
@@ -85,23 +106,22 @@ CREATE TABLE compra_proveedor (
     CONSTRAINT fk_variante_compra FOREIGN KEY (producto_variante_id) REFERENCES producto_variante(id)
 );
 
-
 -- Tabla: Direccion
 CREATE TABLE direccion (
     id VARCHAR PRIMARY KEY,
     usuario_id VARCHAR NOT NULL,
     titulo VARCHAR(50) DEFAULT 'Mi Dirección',
-    calle VARCHAR(30) NOT NULL,
+    calle VARCHAR(50) NOT NULL,
     numero VARCHAR(30),
     departamento VARCHAR(50),
-    codigo_postal VARCHAR(5) NOT NULL,
+    codigo_postal VARCHAR(10) NOT NULL,
     ciudad VARCHAR(50) NOT NULL,
     provincia VARCHAR(50) NOT NULL,
     principal BOOLEAN DEFAULT FALSE,
     CONSTRAINT fk_usuario_dir FOREIGN KEY (usuario_id) REFERENCES usuario(id)
 );
 
--- Tabla: Opinion
+-- Tabla: Opinion (NOTE: calificacion is now estrellas)
 CREATE TABLE opinion (
     id VARCHAR PRIMARY KEY,
     usuario_id VARCHAR NOT NULL,
@@ -145,13 +165,13 @@ CREATE TABLE carrito_item (
     CONSTRAINT fk_variante_cart_item FOREIGN KEY (producto_variante_id) REFERENCES producto_variante(id)
 );
 
--- Tabla: Compra (Venta finalizada)
+-- Tabla: Compra
 CREATE TABLE compra (
     id VARCHAR PRIMARY KEY,
     usuario_id VARCHAR NOT NULL,
     numero VARCHAR UNIQUE NOT NULL,
     fecha DATE DEFAULT CURRENT_DATE,
-    total DECIMAL(12, 2) NOT NULL  CHECK (total >= 0),
+    total DECIMAL(12, 2) NOT NULL CHECK (total >= 0),
     descuento_total DECIMAL(12, 2) DEFAULT 0,
     estado_pago estado_pago NOT NULL,
     CONSTRAINT fk_usuario_compra FOREIGN KEY (usuario_id) REFERENCES usuario(id)
@@ -175,20 +195,12 @@ CREATE TABLE combo (
     nombre VARCHAR(50) NOT NULL,
     descripcion TEXT,
     precio DECIMAL(10,2) NOT NULL CHECK (precio >= 0),
-    producto_variante_id VARCHAR NOT NULL REFERENCES producto_variante(id) -- Representante del combo
+    producto_variante_id VARCHAR NOT NULL REFERENCES producto_variante(id)
 );
 
 -- Tabla: ComboItem
-
-/*
-Se optó por un modelo de Variante Representante para los combos. Esto permite que cada combo herede las 
-capacidades de un producto normal (galería de imágenes, sistema de reseñas y categorización) sin duplicar
-la estructura de la base de datos. La integridad del inventario se mantiene mediante la relación en ComboItem,
-que vincula la oferta comercial con las existencias físicas de cada camisa individual."
-*/
-
 CREATE TABLE combo_item (
-    combo_id VARCHAR REFERENCES Combo(id),
+    combo_id VARCHAR REFERENCES combo(id),
     producto_variante_id VARCHAR REFERENCES producto_variante(id),
     cantidad INT NOT NULL CHECK (cantidad > 0),
     PRIMARY KEY (combo_id, producto_variante_id)
