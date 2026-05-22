@@ -1,30 +1,29 @@
 -- ==========================================================
 -- SCRIPT 08: 08-testing.sql
+-- Purpose: Protocolo de pruebas integrado con SPs de negocio
 -- ==========================================================
 
 BEGIN;
 
--- 1. SIMULACIÓN TRANSACCIONAL (Camino Feliz)
--- Creamos un carrito para el cliente Facundo (U02)
+-- 1. LIMPIEZA PREVENTIVA: Aseguramos un entorno limpio y vaciamos tablas operativas
+TRUNCATE TABLE opinion, compra, linea_de_compra, carrito_item, carrito RESTART IDENTITY CASCADE;
+
+-- 2. INICIALIZACIÓN: Apertura del carrito para el cliente Facundo (U02)
 INSERT INTO carrito (id, usuario_id, total, estado) VALUES 
 ('C01', 'U02', 0, 'abierto');
 
--- Agregamos productos al carrito (Los triggers validarán stock y actualizarán el total automáticamente)
-INSERT INTO carrito_item (id, carrito_id, producto_variante_id, cantidad, precio_unitario) VALUES 
-('CI01', 'C01', 'V1-B-M', 2, 25000),
-('CI02', 'C01', 'V9-RB-M', 1, 12000);
+-- 3. CARGA DE PRODUCTOS: Uso del primer procedimiento almacenado
+CALL sp_agregar_al_carrito('C01', 'V1-B-M', 2);
+CALL sp_agregar_al_carrito('C01', 'V9-RB-M', 1);
 
--- Ejecutamos el procedimiento para finalizar la compra
+-- 4. CHECKOUT: Cierre de la orden y migración atómica de ítems
 CALL sp_finalizar_compra('U02', 'C01');
 
--- Confirmamos el pago (Dispara la validación final de stock antes de confirmar)
-UPDATE compra 
-SET estado_pago = 'confirmado' 
-WHERE usuario_id = 'U02' AND estado_pago = 'procesando';
+-- 5. CONFIRMACIÓN DE PAGO: Uso del segundo procedimiento almacenado
+CALL sp_confirmar_pago('U02');
 
--- 2. VALIDACIÓN DE OPINIONES
--- Escribimos una reseña post-compra para disparar y testear los checks de integridad (solo clientes que compraron)
-INSERT INTO opinion (id, usuario_id, producto_variante_id, estrellas, comentario) VALUES
-('OP-001', 'U02', 'V1-B-M', 5, 'Excelente calidad, el talle M me quedó perfecto.');
+-- 6. RESEÑA POST-COMPRA: Uso del tercer procedimiento almacenado con ID aleatorio automático
+-- La base de datos autogestiona el identificador y audita los accesos de forma interna
+CALL sp_dejar_opinion('U02', 'V1-B-M', 5, 'Excelente calidad, el talle es perfecto y el ID aleatorio funciona genial.');
 
 COMMIT;

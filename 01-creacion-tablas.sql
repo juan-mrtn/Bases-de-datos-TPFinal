@@ -188,7 +188,7 @@ CREATE TABLE linea_de_compra (
     precio_unitario DECIMAL(12, 2) NOT NULL CHECK (precio_unitario >= 0),
     descuento_unitario DECIMAL(12, 2) DEFAULT 0,
     promocion_id VARCHAR,
-    CONSTRAINT fk_promocion_linea FOREIGN KEY (promocion_id) REFERENCES promocion(id)
+    CONSTRAINT fk_promocion_linea FOREIGN KEY (promocion_id) REFERENCES promocion(id),
     CONSTRAINT fk_compra FOREIGN KEY (compra_id) REFERENCES compra(id),
     CONSTRAINT fk_variante_linea FOREIGN KEY (producto_variante_id) REFERENCES producto_variante(id)
 );

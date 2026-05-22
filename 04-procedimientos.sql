@@ -51,7 +51,7 @@ BEGIN
     UPDATE carrito SET total = 0, estado = 'confirmado' WHERE id = p_carrito_id;
     DELETE FROM carrito_item WHERE carrito_id = p_carrito_id;
 
-    RAISE NOTICE 'Compra % generada exitosamente. Pendiente de pago.', v_compra_id;
+    RAISE NOTICE 'Compra % generada exitosamente.', v_compra_id;
 END;
 $$;
 
@@ -89,5 +89,72 @@ BEGIN
         p_costo_unitario, 
         CURRENT_DATE
     );
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE sp_agregar_al_carrito(
+    p_carrito_id VARCHAR,
+    p_producto_variante_id VARCHAR,
+    p_cantidad INT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_precio_unitario DECIMAL;
+    v_existe_item INT;
+BEGIN
+    SELECT precio INTO v_precio_unitario 
+    FROM producto_variante 
+    WHERE id = p_producto_variante_id;
+
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'El producto variante % no existe.', p_producto_variante_id;
+    END IF;
+
+    SELECT count(*) INTO v_existe_item 
+    FROM carrito_item 
+    WHERE carrito_id = p_carrito_id AND producto_variante_id = p_producto_variante_id;
+
+    IF v_existe_item > 0 THEN
+        UPDATE carrito_item 
+        SET cantidad = cantidad + p_cantidad
+        WHERE carrito_id = p_carrito_id AND producto_variante_id = p_producto_variante_id;
+    ELSE
+        INSERT INTO carrito_item (id, carrito_id, producto_variante_id, cantidad, precio_unitario, descuento_unitario)
+        VALUES (gen_random_uuid(), p_carrito_id, p_producto_variante_id, p_cantidad, v_precio_unitario, 0);
+    END IF;
+
+END;
+$$;
+
+CREATE OR REPLACE PROCEDURE sp_confirmar_pago(
+    p_usuario_id VARCHAR
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_compra_id VARCHAR;
+    v_estado_actual estado_pago;
+BEGIN
+    -- 1. Buscar de forma automática la última compra en proceso del usuario
+    SELECT id, estado_pago INTO v_compra_id, v_estado_actual
+    FROM compra
+    WHERE usuario_id = p_usuario_id AND estado_pago = 'procesando'
+    ORDER BY fecha DESC
+    LIMIT 1;
+
+    -- 2. Validar que efectivamente exista una orden pendiente de pago
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'No se encontró ninguna compra pendiente de pago (estado ''procesando'') para el usuario %.', p_usuario_id;
+    END IF;
+
+    -- 3. Actualizar el estado de pago de forma segura
+    -- Nota: Al pasar a 'confirmado', se ejecutará automáticamente el trigger
+    -- 'trg_compra_validar_stock_final' para re-verificar el stock en tiempo real.
+    UPDATE compra 
+    SET estado_pago = 'confirmado' 
+    WHERE id = v_compra_id;
+
+    RAISE NOTICE 'Pago de la compra % confirmado exitosamente.', v_compra_id;
 END;
 $$;
