@@ -22,32 +22,61 @@ DECLARE
     v_ingresos INT;
     v_egresos_directos INT;
     v_egresos_combos INT;
+    v_stock_combo_detalles INT;
+    v_item_componente RECORD;
+    v_stock_componente_individual INT;
+    v_combos_posibles INT;
 BEGIN
-    -- 1. Total ingresado por proveedores
-    SELECT COALESCE(SUM(cantidad), 0) INTO v_ingresos 
-    FROM compra_proveedor 
-    WHERE producto_variante_id = p_variante_id;
+    -- BIFURCACIÓN CONDICIONAL: ¿El ID consultado pertenece a un Combo Virtual?
+    IF EXISTS (SELECT 1 FROM combo WHERE id = p_variante_id) THEN
+        
+        -- Inicializamos con un valor alto para buscar el mínimo limitante (patrón Pivot)
+        v_combos_posibles := 999999; 
 
-    -- 2. Total vendido como producto individual (Ventas confirmadas)
-    SELECT COALESCE(SUM(lc.cantidad), 0) INTO v_egresos_directos
-    FROM linea_de_compra lc
-    JOIN compra c ON lc.compra_id = c.id
-    WHERE lc.producto_variante_id = p_variante_id 
-    AND c.estado_pago = 'confirmado';
+        -- Iteramos sobre los componentes reales indexados en combo_item para ese combo
+        FOR v_item_componente IN (
+            SELECT producto_variante_id, cantidad 
+            FROM combo_item 
+            WHERE combo_id = p_variante_id
+        ) LOOP
+            v_stock_componente_individual := fn_obtener_stock_real(v_item_componente.producto_variante_id);
+            v_stock_combo_detalles := floor(v_stock_componente_individual / v_item_componente.cantidad);
+            
+            IF v_stock_combo_detalles < v_combos_posibles THEN
+                v_combos_posibles := v_stock_combo_detalles;
+            END IF;
+        END LOOP;
 
-    -- 3. Total vendido dentro de COMBOS (Ventas confirmadas)
-    SELECT COALESCE(SUM(lc.cantidad * ci.cantidad), 0) INTO v_egresos_combos
-    FROM linea_de_compra lc
-    JOIN compra c ON lc.compra_id = c.id
-    JOIN combo co ON lc.producto_variante_id = co.producto_variante_id
-    JOIN combo_item ci ON co.id = ci.combo_id
-    WHERE ci.producto_variante_id = p_variante_id
-    AND c.estado_pago = 'confirmado';
+        -- Si el combo no tiene ítems asociados por error, devolvemos 0
+        IF v_combos_posibles = 999999 THEN
+            RETURN 0;
+        END IF;
 
-    RETURN v_ingresos - v_egresos_directos - v_egresos_combos;
+        RETURN v_combos_posibles;
+
+    ELSE
+        SELECT COALESCE(SUM(cantidad), 0) INTO v_ingresos 
+        FROM compra_proveedor 
+        WHERE producto_variante_id = p_variante_id;
+
+        SELECT COALESCE(SUM(lc.cantidad), 0) INTO v_egresos_directos
+        FROM linea_de_compra lc
+        JOIN compra c ON lc.compra_id = c.id
+        WHERE lc.producto_variante_id = p_variante_id 
+        AND c.estado_pago = 'confirmado';
+
+        SELECT COALESCE(SUM(lc.cantidad * ci.cantidad), 0) INTO v_egresos_combos
+        FROM linea_de_compra lc
+        JOIN compra c ON lc.compra_id = c.id
+        JOIN combo co ON lc.producto_variante_id = co.producto_variante_id
+        JOIN combo_item ci ON co.id = ci.combo_id
+        WHERE ci.producto_variante_id = p_variante_id
+        AND c.estado_pago = 'confirmado';
+
+        RETURN v_ingresos - v_egresos_directos - v_egresos_combos;
+    END IF;
 END;
 $$ LANGUAGE plpgsql;
-
 
 -- fn_calcular_total_carrito: Computes the sum for the cart
 CREATE OR REPLACE FUNCTION fn_calcular_total_carrito(p_carrito_id VARCHAR) 

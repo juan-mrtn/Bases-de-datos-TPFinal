@@ -158,14 +158,24 @@ CREATE TABLE carrito_item (
     id VARCHAR PRIMARY KEY,
     carrito_id VARCHAR NOT NULL,
     producto_variante_id VARCHAR NOT NULL,
+    combo_id VARCHAR NULL,
     cantidad INT NOT NULL CHECK (cantidad > 0),
     precio_unitario DECIMAL(12, 2) NOT NULL CHECK (precio_unitario >= 0),
     descuento_unitario DECIMAL(12, 2) DEFAULT 0,
     promocion_id VARCHAR,
     CONSTRAINT fk_promocion_carrito FOREIGN KEY (promocion_id) REFERENCES promocion(id),
     CONSTRAINT fk_carrito FOREIGN KEY (carrito_id) REFERENCES carrito(id),
-    CONSTRAINT fk_variante_cart_item FOREIGN KEY (producto_variante_id) REFERENCES producto_variante(id)
+    CONSTRAINT fk_variante_cart_item FOREIGN KEY (producto_variante_id) REFERENCES producto_variante(id),
+    CONSTRAINT fk_combo_cart_item FOREIGN KEY (combo_id) REFERENCES combo(id)
 );
+
+CREATE UNIQUE INDEX idx_unique_item_variante 
+ON carrito_item (carrito_id, producto_variante_id) 
+WHERE producto_variante_id IS NOT NULL;
+
+CREATE UNIQUE INDEX idx_unique_item_combo 
+ON carrito_item (carrito_id, combo_id) 
+WHERE combo_id IS NOT NULL;
 
 -- Tabla: Compra
 CREATE TABLE compra (
@@ -184,13 +194,15 @@ CREATE TABLE linea_de_compra (
     id VARCHAR PRIMARY KEY,
     compra_id VARCHAR NOT NULL,
     producto_variante_id VARCHAR NOT NULL,
+    combo_id VARCHAR NULL,
     cantidad INT NOT NULL CHECK (cantidad > 0),
     precio_unitario DECIMAL(12, 2) NOT NULL CHECK (precio_unitario >= 0),
     descuento_unitario DECIMAL(12, 2) DEFAULT 0,
     promocion_id VARCHAR,
     CONSTRAINT fk_promocion_linea FOREIGN KEY (promocion_id) REFERENCES promocion(id),
     CONSTRAINT fk_compra FOREIGN KEY (compra_id) REFERENCES compra(id),
-    CONSTRAINT fk_variante_linea FOREIGN KEY (producto_variante_id) REFERENCES producto_variante(id)
+    CONSTRAINT fk_variante_linea FOREIGN KEY (producto_variante_id) REFERENCES producto_variante(id),
+    Corrección: Añade CONSTRAINT fk_combo_linea FOREIGN KEY (combo_id) REFERENCES combo(id)
 );
 
 -- Tabla: Combo
@@ -199,15 +211,16 @@ CREATE TABLE combo (
     nombre VARCHAR(50) NOT NULL,
     descripcion TEXT,
     precio DECIMAL(10,2) NOT NULL CHECK (precio >= 0),
-    producto_variante_id VARCHAR NOT NULL REFERENCES producto_variante(id)
+    producto_variante_id VARCHAR NOT NULL,
+    CONSTRAINT fk_variante_combo FOREIGN KEY (producto_variante_id) REFERENCES producto_variante(id)
 );
 
 -- Tabla: ComboItem
 CREATE TABLE combo_item (
+    PRIMARY KEY (combo_id, producto_variante_id)
     combo_id VARCHAR REFERENCES combo(id),
     producto_variante_id VARCHAR REFERENCES producto_variante(id),
     cantidad INT NOT NULL CHECK (cantidad > 0),
-    PRIMARY KEY (combo_id, producto_variante_id)
 );
 
 COMMIT;
