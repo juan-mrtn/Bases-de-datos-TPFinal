@@ -193,7 +193,7 @@ CREATE TABLE compra (
 CREATE TABLE linea_de_compra (
     id VARCHAR PRIMARY KEY,
     compra_id VARCHAR NOT NULL,
-    producto_variante_id VARCHAR NOT NULL,
+    producto_variante_id VARCHAR NULL,
     combo_id VARCHAR NULL,
     cantidad INT NOT NULL CHECK (cantidad > 0),
     precio_unitario DECIMAL(12, 2) NOT NULL CHECK (precio_unitario >= 0),

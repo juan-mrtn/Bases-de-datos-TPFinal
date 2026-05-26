@@ -37,12 +37,23 @@ BEGIN
     );
 
     -- 3. Move items from cart to order lines
+    -- 3. Mover los ítems del carrito a las líneas de la compra histórica
     FOR v_item IN SELECT * FROM carrito_item WHERE carrito_id = p_carrito_id LOOP
-        INSERT INTO linea_de_compra (id, compra_id, producto_variante_id, cantidad, precio_unitario)
+        
+        INSERT INTO linea_de_compra (
+            id, 
+            compra_id, 
+            producto_variante_id, 
+            combo_id,         -- IMPORTANTE: No olvidar registrar el combo
+            cantidad, 
+            precio_unitario
+        )
         VALUES (
-            'LC-' || v_compra_id || '-' || v_item.producto_variante_id, 
+            -- Uso de COALESCE: Si variante es NULL, concatena el ID del combo. Evita que el ID colapse a nulo.
+            'LC-' || v_compra_id || '-' || COALESCE(v_item.producto_variante_id, v_item.combo_id), 
             v_compra_id, 
             v_item.producto_variante_id, 
+            v_item.combo_id,  -- Pasamos el dato del combo a la línea histórica
             v_item.cantidad, 
             v_item.precio_unitario
         );
