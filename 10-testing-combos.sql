@@ -23,7 +23,7 @@ UPDATE carrito SET total = 0, estado = 'abierto' WHERE id = 'CART-PRUEBA-COMBOS'
 -- =========================================================================
 
 -- 1. Ejecutar la carga del combo virtual (2 unidades de 'COMBO-URBANO-01')
-CALL sp_agregar_al_carrito('CART-PRUEBA-COMBOS', 'COMBO-URBANO-01', 2, TRUE);
+CALL sp_agregar_al_carrito('CART-PRUEBA-COMBOS', 'C1', 2, TRUE);
 
 -- 2. VERIFICACIÓN DE RESULTADO: Consultar la vista del detalle del carrito
 SELECT 
@@ -55,7 +55,7 @@ WHERE carrito_id = 'CART-PRUEBA-COMBOS';
 -- 1. Guardar una foto del stock actual de los componentes individuales antes de la compra
 SELECT producto_variante_id, stock_disponible, tipo_item 
 FROM v_stock_actual 
-WHERE producto_variante_id IN ('V1-B-M', 'V9-RB-M', 'COMBO-URBANO-01');
+WHERE producto_variante_id IN ('V1-B-M', 'V9-RB-M', 'C1');
 
 -- 2. Añadir prendas individuales al mismo carrito (Ej: 2 unidades de la camisa suelta 'V1-B-M')
 CALL sp_agregar_al_carrito('CART-PRUEBA-COMBOS', 'V1-B-M', 2, FALSE);
@@ -74,7 +74,7 @@ CALL sp_confirmar_pago('USR-PRUEBA-COMBOS');
 -- 6. VERIFICACIÓN DE IMPACTO FINAL: Consultar el nuevo stock neto remanente
 SELECT producto_variante_id, stock_disponible, tipo_item 
 FROM v_stock_actual 
-WHERE producto_variante_id IN ('V1-B-M', 'V9-RB-M', 'COMBO-URBANO-01');
+WHERE producto_variante_id IN ('V1-B-M', 'V9-RB-M', 'C1');
 
 /* ANÁLISIS MATEMÁTICO DE REDUCCIÓN DE STOCK ESPERADO:
   En el carrito teníamos:

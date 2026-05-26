@@ -47,7 +47,6 @@ BEGIN
             END IF;
         END LOOP;
 
-        -- Si el combo no tiene ítems asociados por error, devolvemos 0
         IF v_combos_posibles = 999999 THEN
             RETURN 0;
         END IF;
@@ -68,8 +67,7 @@ BEGIN
         SELECT COALESCE(SUM(lc.cantidad * ci.cantidad), 0) INTO v_egresos_combos
         FROM linea_de_compra lc
         JOIN compra c ON lc.compra_id = c.id
-        JOIN combo co ON lc.producto_variante_id = co.producto_variante_id
-        JOIN combo_item ci ON co.id = ci.combo_id
+        JOIN combo_item ci ON lc.combo_id = ci.combo_id
         WHERE ci.producto_variante_id = p_variante_id
         AND c.estado_pago = 'confirmado';
 
@@ -219,23 +217,6 @@ BEGIN
         RAISE EXCEPTION 'No puedes opinar sobre una variante que no has comprado o confirmado.';
     END IF;
 
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-
--- fn_trg_validar_favorito: Prevents duplicate favorites
-CREATE OR REPLACE FUNCTION fn_trg_validar_favorito()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF EXISTS (
-        SELECT 1 
-        FROM favorito
-        WHERE usuario_id = NEW.usuario_id
-        AND producto_variante_id = NEW.producto_variante_id
-    ) THEN
-        RAISE EXCEPTION 'Este producto ya está en favoritos.';
-    END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

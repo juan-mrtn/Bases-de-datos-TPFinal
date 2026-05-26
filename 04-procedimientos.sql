@@ -6,11 +6,15 @@
 -- 1. DROP EXISTING PROCEDURES
 DROP PROCEDURE IF EXISTS sp_finalizar_compra(VARCHAR, VARCHAR) CASCADE;
 DROP PROCEDURE IF EXISTS sp_registrar_ingreso_stock(VARCHAR, VARCHAR, VARCHAR, INT, DECIMAL) CASCADE;
-
+DROP PROCEDURE IF EXISTS sp_agregar_al_carrito(VARCHAR, VARCHAR, INT, BOOLEAN) CASCADE;
+DROP PROCEDURE IF EXISTS sp_confirmar_pago(VARCHAR) CASCADE;
+DROP PROCEDURE IF EXISTS sp_crear_combo(VARCHAR, VARCHAR, TEXT, DECIMAL, VARCHAR, VARCHAR[], INT[]) CASCADE;
+DROP PROCEDURE IF EXISTS sp_dejar_opinion(VARCHAR, VARCHAR, INT, TEXT) CASCADE;
 -- 2. STORED PROCEDURES DEFINITION
 -- Crear una secuencia para el número comercial de compra (correlativo e inviolable)
 CREATE SEQUENCE IF NOT EXISTS seq_numero_compra START WITH 10001;
 -- sp_finalizar_compra: Concludes open cart, creates compra, moves items, zeroes cart, updates state
+-- sp_finalizar_compra: Concludes open cart, creates compra header and moves items to order lines
 CREATE OR REPLACE PROCEDURE sp_finalizar_compra(
     p_usuario_id VARCHAR,
     p_carrito_id VARCHAR
@@ -18,55 +22,63 @@ CREATE OR REPLACE PROCEDURE sp_finalizar_compra(
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_compra_id VARCHAR := 'CMP-' || CAST(nextval('seq_numero_compra') AS VARCHAR);
+    v_seq BIGINT := nextval('seq_numero_compra');           -- Single call to sequence
+    v_compra_id VARCHAR := 'CMP-' || v_seq;
+    v_numero_comercial VARCHAR := 'N-' || v_seq;
     v_total_carrito DECIMAL;
     v_item RECORD;
 BEGIN
     -- 1. Get accumulated cart total
     SELECT total INTO v_total_carrito FROM carrito WHERE id = p_carrito_id;
 
-    -- 2. Create header (status 'procesando')
+    -- 2. Create purchase header
     INSERT INTO compra (id, usuario_id, numero, fecha, total, estado_pago)
     VALUES (
         v_compra_id, 
         p_usuario_id, 
-        'N-' || CAST(nextval('seq_numero_compra') AS VARCHAR), 
+        v_numero_comercial, 
         CURRENT_TIMESTAMP, 
         v_total_carrito, 
         'procesando'
     );
 
-    -- 3. Move items from cart to order lines
-    -- 3. Mover los ítems del carrito a las líneas de la compra histórica
+    -- 3. Move items from cart to purchase lines
     FOR v_item IN SELECT * FROM carrito_item WHERE carrito_id = p_carrito_id LOOP
         
         INSERT INTO linea_de_compra (
             id, 
             compra_id, 
             producto_variante_id, 
-            combo_id,         -- IMPORTANTE: No olvidar registrar el combo
+            combo_id,
             cantidad, 
-            precio_unitario
+            precio_unitario,
+            descuento_unitario,
+            promocion_id
         )
         VALUES (
-            -- Uso de COALESCE: Si variante es NULL, concatena el ID del combo. Evita que el ID colapse a nulo.
             'LC-' || v_compra_id || '-' || COALESCE(v_item.producto_variante_id, v_item.combo_id), 
             v_compra_id, 
             v_item.producto_variante_id, 
-            v_item.combo_id,  -- Pasamos el dato del combo a la línea histórica
+            v_item.combo_id,
             v_item.cantidad, 
-            v_item.precio_unitario
+            v_item.precio_unitario,
+            v_item.descuento_unitario,
+            v_item.promocion_id
         );
     END LOOP;
 
-    -- 4. Clean up cart and toggle state to 'confirmado'
-    UPDATE carrito SET total = 0, estado = 'confirmado' WHERE id = p_carrito_id;
+    -- 4. Clean up cart
+    UPDATE carrito 
+    SET total = 0, 
+        descuento_total = 0, 
+        estado = 'confirmado' 
+    WHERE id = p_carrito_id;
+
     DELETE FROM carrito_item WHERE carrito_id = p_carrito_id;
 
-    RAISE NOTICE 'Compra % generada exitosamente.', v_compra_id;
+    RAISE NOTICE 'Purchase % generated successfully. Commercial number: %', v_compra_id, v_numero_comercial;
 END;
 $$;
-
 
 -- sp_registrar_ingreso_stock: Matches user-friendly params to validate and log receipt
 CREATE OR REPLACE PROCEDURE sp_registrar_ingreso_stock(

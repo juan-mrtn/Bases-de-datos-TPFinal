@@ -38,7 +38,3 @@ CREATE TRIGGER trg_validar_cliente_opinion
 BEFORE INSERT ON opinion
 FOR EACH ROW EXECUTE FUNCTION fn_trg_validar_cliente_opinion();
 
--- trg_validar_favorito: Avoids duplicate entries in wishlist
-CREATE TRIGGER trg_validar_favorito
-BEFORE INSERT ON favorito
-FOR EACH ROW EXECUTE FUNCTION fn_trg_validar_favorito();
