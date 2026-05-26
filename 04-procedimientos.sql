@@ -210,3 +210,26 @@ BEGIN
     RAISE NOTICE 'Combo % ("%") creado exitosamente con % componentes.', p_combo_id, p_nombre, array_length(p_componentes_ids, 1);
 END;
 $$;
+
+-- ==========================================================
+-- Procedimiento para registrar opiniones con ID aleatorio automático
+-- ==========================================================
+CREATE OR REPLACE PROCEDURE sp_dejar_opinion(
+    p_usuario_id VARCHAR,
+    p_producto_variante_id VARCHAR,
+    p_estrellas INT,
+    p_comentario TEXT
+)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id_aleatorio VARCHAR;
+BEGIN
+    v_id_aleatorio := 'OP-' || substring(gen_random_uuid()::text from 1 for 8);
+
+    INSERT INTO opinion (id, usuario_id, producto_variante_id, estrellas, comentario, fecha)
+    VALUES (v_id_aleatorio, p_usuario_id, p_producto_variante_id, p_estrellas, p_comentario, CURRENT_DATE);
+
+    RAISE NOTICE 'Opinión registrada exitosamente bajo el identificador único: %', v_id_aleatorio;
+END;
+$$;
