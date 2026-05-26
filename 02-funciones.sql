@@ -131,24 +131,40 @@ DECLARE
     v_linea RECORD;
     v_stock_actual INT;
     v_comp RECORD;
+    v_id_a_validar VARCHAR;
     v_combo_id VARCHAR;
 BEGIN
     IF NEW.estado_pago = 'confirmado' AND OLD.estado_pago <> 'confirmado' THEN
         
         FOR v_linea IN SELECT * FROM linea_de_compra WHERE compra_id = NEW.id LOOP
-            SELECT id INTO v_combo_id FROM combo WHERE producto_variante_id = v_linea.producto_variante_id;
+            
+            -- Determinar qué ID validar (variante o combo)
+            IF v_linea.producto_variante_id IS NOT NULL THEN
+                v_id_a_validar := v_linea.producto_variante_id;
+            ELSIF v_linea.combo_id IS NOT NULL THEN
+                v_id_a_validar := v_linea.combo_id;
+            ELSE
+                RAISE EXCEPTION 'La línea de compra no tiene asociado ni una variante ni un combo.';
+            END IF;
+
+            -- Verificar si es un combo
+            SELECT id INTO v_combo_id FROM combo WHERE id = v_id_a_validar;
 
             IF v_combo_id IS NOT NULL THEN
+                -- Es un combo: validar stock de cada componente
                 FOR v_comp IN (SELECT producto_variante_id, cantidad FROM combo_item WHERE combo_id = v_combo_id) LOOP
                     v_stock_actual := fn_obtener_stock_real(v_comp.producto_variante_id);
                     IF v_stock_actual < (v_comp.cantidad * v_linea.cantidad) THEN
-                        RAISE EXCEPTION 'Error al confirmar: Componente % sin stock.', v_comp.producto_variante_id;
+                        RAISE EXCEPTION 'Error al confirmar: Componente % sin stock (Disp: %, Necesario: %).', 
+                                        v_comp.producto_variante_id, v_stock_actual, (v_comp.cantidad * v_linea.cantidad);
                     END IF;
                 END LOOP;
             ELSE
-                v_stock_actual := fn_obtener_stock_real(v_linea.producto_variante_id);
+                -- Es una variante simple
+                v_stock_actual := fn_obtener_stock_real(v_id_a_validar);
                 IF v_stock_actual < v_linea.cantidad THEN
-                    RAISE EXCEPTION 'Error al confirmar: Variante % sin stock (Disp: %).', v_linea.producto_variante_id, v_stock_actual;
+                    RAISE EXCEPTION 'Error al confirmar: Variante % sin stock (Disp: %, Necesario: %).', 
+                                    v_id_a_validar, v_stock_actual, v_linea.cantidad;
                 END IF;
             END IF;
             
