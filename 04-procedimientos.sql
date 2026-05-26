@@ -116,6 +116,7 @@ BEGIN
 END;
 $$;
 
+-- sp_agregar_al_carrito: Añade ítems al carrito resolviendo polimorfismo sin usar ON CONFLICT
 CREATE OR REPLACE PROCEDURE sp_agregar_al_carrito(
     p_carrito_id VARCHAR,
     p_item_id VARCHAR,
@@ -125,26 +126,55 @@ CREATE OR REPLACE PROCEDURE sp_agregar_al_carrito(
 LANGUAGE plpgsql
 AS $$
 DECLARE
-    v_precio DECIMAL;
+    v_precio DECIMAL(12,2);
+    v_existe_en_carrito BOOLEAN;
 BEGIN
+    -- 1. CAPA DE VALIDACIÓN DE EXISTENCIA Y PRECIOS
     IF p_es_combo THEN
         SELECT precio INTO v_precio FROM combo WHERE id = p_item_id;
         IF NOT FOUND THEN RAISE EXCEPTION 'El combo % no existe.', p_item_id; END IF;
-
-        INSERT INTO carrito_item (id, carrito_id, combo_id, cantidad, precio_unitario)
-        VALUES (gen_random_uuid(), p_carrito_id, p_item_id, p_cantidad, v_precio)
-        ON CONFLICT (carrito_id, combo_id)
-        DO UPDATE SET cantidad = carrito_item.cantidad + p_cantidad;
         
+        -- Verificar si este combo ya fue añadido previamente a este carrito
+        SELECT EXISTS(
+            SELECT 1 FROM carrito_item 
+            WHERE carrito_id = p_carrito_id AND combo_id = p_item_id
+        ) INTO v_existe_en_carrito;
+
     ELSE
         SELECT precio INTO v_precio FROM producto_variante WHERE id = p_item_id;
         IF NOT FOUND THEN RAISE EXCEPTION 'La variante % no existe.', p_item_id; END IF;
-
-        INSERT INTO carrito_item (id, carrito_id, producto_variante_id, cantidad, precio_unitario)
-        VALUES (gen_random_uuid(), p_carrito_id, p_item_id, p_cantidad, v_precio)
-        ON CONFLICT (carrito_id, producto_variante_id) 
-        DO UPDATE SET cantidad = carrito_item.cantidad + p_cantidad;
+        
+        -- Verificar si esta variante ya fue añadida previamente a este carrito
+        SELECT EXISTS(
+            SELECT 1 FROM carrito_item 
+            WHERE carrito_id = p_carrito_id AND producto_variante_id = p_item_id
+        ) INTO v_existe_en_carrito;
     END IF;
+
+    -- 2. BIFURCACIÓN CONTROLADA (IF/ELSE TRADICIONAL)
+    IF v_existe_en_carrito THEN
+        -- Si ya existe, ejecutamos un UPDATE sumando las cantidades
+        IF p_es_combo THEN
+            UPDATE carrito_item 
+            SET cantidad = cantidad + p_cantidad
+            WHERE carrito_id = p_carrito_id AND combo_id = p_item_id;
+        ELSE
+            UPDATE carrito_item 
+            SET cantidad = cantidad + p_cantidad
+            WHERE carrito_id = p_carrito_id AND producto_variante_id = p_item_id;
+        END IF;
+    ELSE
+        -- Si es un artículo nuevo en la sesión, ejecutamos un INSERT limpio
+        IF p_es_combo THEN
+            INSERT INTO carrito_item (id, carrito_id, combo_id, cantidad, precio_unitario)
+            VALUES (gen_random_uuid()::VARCHAR, p_carrito_id, p_item_id, p_cantidad, v_precio);
+        ELSE
+            INSERT INTO carrito_item (id, carrito_id, producto_variante_id, cantidad, precio_unitario)
+            VALUES (gen_random_uuid()::VARCHAR, p_carrito_id, p_item_id, p_cantidad, v_precio);
+        END IF;
+    END IF;
+
+    -- El trigger nativo de stock saltará automáticamente al impactar el DML aquí
 END;
 $$;
 

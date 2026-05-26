@@ -189,7 +189,7 @@ WHERE combo_id IS NOT NULL;
 
 -- Tabla: Compra
 CREATE TABLE compra (
-    id VARCHAR PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     usuario_id VARCHAR NOT NULL,
     numero VARCHAR UNIQUE NOT NULL,
     fecha DATE DEFAULT CURRENT_DATE,
@@ -202,7 +202,7 @@ CREATE TABLE compra (
 -- Tabla: LineaDeCompra
 CREATE TABLE linea_de_compra (
     id VARCHAR PRIMARY KEY,
-    compra_id VARCHAR NOT NULL,
+    compra_id UUID NOT NULL,
     producto_variante_id VARCHAR,
     combo_id VARCHAR,
     cantidad INT NOT NULL CHECK (cantidad > 0),
