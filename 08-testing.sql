@@ -2,7 +2,7 @@
 -- SCRIPT 08: 08-testing.sql
 -- Purpose: Protocolo de pruebas integrado con SPs de negocio
 -- ==========================================================
-
+rollback;
 BEGIN;
 
 -- 1. LIMPIEZA PREVENTIVA: Aseguramos un entorno limpio y vaciamos tablas operativas
@@ -13,8 +13,8 @@ INSERT INTO carrito (id, usuario_id, total, estado) VALUES
 ('C01', 'U02', 0, 'abierto');
 
 -- 3. CARGA DE PRODUCTOS: Uso del primer procedimiento almacenado
-CALL sp_agregar_al_carrito('C01', 'V1-B-M', 2);
-CALL sp_agregar_al_carrito('C01', 'V9-RB-M', 1);
+CALL sp_agregar_al_carrito('C01', 'V1-B-M', 2, FALSE);
+CALL sp_agregar_al_carrito('C01', 'V9-RB-M', 1, FALSE);
 
 -- 4. CHECKOUT: Cierre de la orden y migración atómica de ítems
 CALL sp_finalizar_compra('U02', 'C01');

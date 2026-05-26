@@ -9,7 +9,7 @@ DO $$
 DECLARE
     v_test_name VARCHAR;
 BEGIN
-    RAISE NOTICE '=== INICIANDO PROTOCOLO AUTOMATIZADO DE ROBUSTEZ ===';
+    RAISE NOTICE 'Test de robustez';
 
     -- ------------------------------------------------------
     -- CASO T-INT02: Bloqueo de opiniones falsas (Trigger)
@@ -18,7 +18,7 @@ BEGIN
     BEGIN
         -- Intentamos insertar opinión de un producto que 'U02' jamás compró
         INSERT INTO opinion (id, usuario_id, producto_variante_id, estrellas, comentario, fecha)
-        VALUES ('OP-ERR', 'U02', 'V9-RB-M', 5, 'Opinión maliciosa/falsa', CURRENT_DATE);
+        VALUES ('OP-ERR', 'U03', 'V9-RB-M', 5, 'Opinión maliciosa/falsa', CURRENT_DATE);
         
         -- Si la ejecución llega a esta línea, significa que la base de datos PERMITIÓ el insert (TEST FALLADO)
         RAISE WARNING 'Test % FALLÓ: El sistema permitió insertar una opinión sin compra previa.', v_test_name;
@@ -68,5 +68,5 @@ BEGIN
         RAISE NOTICE 'Test % PASÓ: El procedimiento validó el estado y denegó el pago huérfano. Código de error: %', v_test_name, SQLSTATE;
     END;
 
-    RAISE NOTICE '=== PROTOCOLO DE ROBUSTEZ FINALIZADO COMPLETO ===';
+    RAISE NOTICE 'Test de robustez completado';
 END $$;

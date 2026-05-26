@@ -8,7 +8,19 @@ BEGIN;
 INSERT INTO proveedor (id, nombre, contacto) VALUES 
 ('PR01', 'Textil Sur', 'Razon Social: Textil ER S.A., Tel: 34542211'),
 ('PR02', 'Botones & Hilos', 'Razon Social: ImpCam S.R.L., Tel: 11432211'),
-('PR03', 'Telas del Norte', 'Razon Social: Norte Textil S.A., Tel: 38745566');
+('PR03', 'Telas del Norte', 'Razon Social: Norte Textil S.A., Tel: 38745566'),
+('PR04', 'Algodones del Plata', 'Contacto: ventas@algodonplata.com, Tel: 011-4556-7890'),
+('PR05', 'Lino Argentino SRL', 'Contacto: Juan Pérez, Tel: 0341-456-7890'),
+('PR06', 'Denim Factory', 'Contacto: fábrica propia, Tel: 011-4777-1234'),
+('PR07', 'Textiles Andinos', 'Contacto: comercio@andinos.com, Tel: 0387-422-3344'),
+('PR08', 'Eurotelas', 'Representante: María López, Tel: 011-4888-5678'),
+('PR09', 'Jeans del Sur', 'Mayorista en Avellaneda, Tel: 011-4222-9900'),
+('PR10', 'Moda Casual SA', 'Contacto: distribucion@modacasual.com'),
+('PR11', 'Insumos Textiles', 'Proveedor de botones y cierres, Tel: 011-4343-2121'),
+('PR12', 'Packaging Express', 'Cajas y bolsas para envíos, Tel: 0800-123-4567'),
+('PR13', 'Estampados Únicos', 'Personalización de camisas, Tel: 011-4555-8888'),
+('PR14', 'Logística Norte', 'Transporte y logística, contacto: logistica@norte.com'),
+('PR15', 'Distribuidora Textil', 'Ofertas por volumen, Tel: 0342-455-6677');
 
 -- 2. USUARIOS (6)
 INSERT INTO usuario (id, nombre, email, password, rol, suscrito) VALUES 
@@ -42,7 +54,18 @@ INSERT INTO promocion (id, tipo, descripcion, fecha_inicio, fecha_fin, descuento
 ('PROM-01', 'descuento', 'Promo Verano 20%', CURRENT_DATE, CURRENT_DATE + INTERVAL '30 days', 0.20),
 ('PROM-02', '2x1', '2x1 en Remeras', CURRENT_DATE, CURRENT_DATE + INTERVAL '15 days', 0.50),
 ('PROM-03', 'descuento', 'Día del Padre 15%', CURRENT_DATE - INTERVAL '5 days', CURRENT_DATE + INTERVAL '10 days', 0.15),
-('PROM-04', 'descuento', 'Black Friday', CURRENT_DATE - INTERVAL '2 days', CURRENT_DATE + INTERVAL '20 days', 0.30);
+('PROM-04', 'descuento', 'Black Friday', CURRENT_DATE - INTERVAL '2 days', CURRENT_DATE + INTERVAL '20 days', 0.30),
+('PROM-05', 'descuento', 'Cyber Monday 15%', CURRENT_DATE - INTERVAL '10 days', CURRENT_DATE + INTERVAL '5 days', 0.15),
+('PROM-06', '2x1', '2x1 en Camisas Oxford', CURRENT_DATE + INTERVAL '1 day', CURRENT_DATE + INTERVAL '20 days', 0.50),
+('PROM-07', 'descuento', 'Día de la Madre 20%', CURRENT_DATE - INTERVAL '15 days', CURRENT_DATE - INTERVAL '2 days', 0.20),
+('PROM-08', 'descuento', 'Hot Sale 25%', CURRENT_DATE + INTERVAL '30 days', CURRENT_DATE + INTERVAL '45 days', 0.25),
+('PROM-09', '2x1', '2x1 en Pantalones Chino', CURRENT_DATE + INTERVAL '5 days', CURRENT_DATE + INTERVAL '25 days', 0.50),
+('PROM-10', 'descuento', 'Bienvenida 10%', CURRENT_DATE - INTERVAL '60 days', CURRENT_DATE + INTERVAL '365 days', 0.10),
+('PROM-11', 'descuento', 'Fin de temporada 30%', CURRENT_DATE + INTERVAL '15 days', CURRENT_DATE + INTERVAL '40 days', 0.30),
+('PROM-12', '2x1', '2x1 en Jeans', CURRENT_DATE + INTERVAL '20 days', CURRENT_DATE + INTERVAL '35 days', 0.50),
+('PROM-13', 'descuento', 'Black Friday 50%', CURRENT_DATE + INTERVAL '180 days', CURRENT_DATE + INTERVAL '185 days', 0.50),
+('PROM-14', 'descuento', 'Navidad 15%', CURRENT_DATE + INTERVAL '200 days', CURRENT_DATE + INTERVAL '210 days', 0.15),
+('PROM-15', 'descuento', 'Aniversario 18%', CURRENT_DATE - INTERVAL '30 days', CURRENT_DATE - INTERVAL '1 day', 0.18);
 
 -- 5. VARIANTES (17)
 INSERT INTO producto_variante (id, producto_id, precio, material, talle, color) VALUES 
@@ -93,8 +116,12 @@ INSERT INTO direccion (id, usuario_id, titulo, calle, numero, codigo_postal, ciu
 ('DIR07', 'U02', 'Departamento', 'La Rioja', '150', '3100', 'Paraná', 'Entre Ríos', false),
 ('DIR08', 'U03', 'Veraneo', 'Costanera', '500', '3260', 'Concordia', 'Entre Ríos', false),
 ('DIR09', 'U04', 'Oficina', 'Corrientes', '220', '3100', 'Paraná', 'Entre Ríos', false),
-('DIR10', 'U05', 'Familia', '25 de Mayo', '75', '3200', 'Gualeguaychú', 'Entre Ríos', false);
-
+('DIR10', 'U05', 'Familia', '25 de Mayo', '75', '3200', 'Gualeguaychú', 'Entre Ríos', false),
+('DIR11', 'U06', 'Casa', 'Belgrano', '777', '3100', 'Paraná', 'Entre Ríos', false),
+('DIR12', 'U02', 'Oficina 2', 'Laprida', '888', '3100', 'Paraná', 'Entre Ríos', false),
+('DIR13', 'U03', 'Quinta', 'Ruta 12', 'km 15', '3260', 'Concordia', 'Entre Ríos', false),
+('DIR14', 'U04', 'Estudio', 'San Juan', '999', '3100', 'Paraná', 'Entre Ríos', false),
+('DIR15', 'U05', 'Casa 2', 'Maipú', '111', '3200', 'Gualeguaychú', 'Entre Ríos', false);
 -- 8. COMBO
 INSERT INTO combo (id, nombre, descripcion, precio, producto_variante_id) VALUES 
 ('C1', 'Pack Dupla Oxford', 'Llevate una blanca y una azul talle M', 45000, 'V-COMBO');
@@ -113,6 +140,12 @@ CALL sp_registrar_ingreso_stock('Remera Básica Blanca', 'M', 'PR02', 120, 4500.
 CALL sp_registrar_ingreso_stock('Suéter Lana Gris', 'XL', 'PR01', 15, 25000.00);
 CALL sp_registrar_ingreso_stock('Jean Slim Blue', '42', 'PR01', 35, 18000.00);
 CALL sp_registrar_ingreso_stock('Camisa Lino Beige', 'M', 'PR03', 18, 15000.00);
+CALL sp_registrar_ingreso_stock('Jean Regular Black', '46', 'PR06', 20, 16000.00);
+CALL sp_registrar_ingreso_stock('Campera Eco-cuero', 'L', 'PR01', 10, 45000.00);
+CALL sp_registrar_ingreso_stock('Bermuda Gabardina', '42', 'PR02', 30, 12000.00);
+CALL sp_registrar_ingreso_stock('Bufanda Lana', 'Uni', 'PR03', 50, 5000.00);
+CALL sp_registrar_ingreso_stock('Camisa Lino Celeste', 'L', 'PR04', 25, 14000.00);
+CALL sp_registrar_ingreso_stock('Pantalón Chino Azul', '44', 'PR05', 18, 19000.00);
 
 -- 10. FAVORITOS (15)
 INSERT INTO favorito (id, usuario_id, producto_variante_id) VALUES
@@ -135,6 +168,11 @@ INSERT INTO opinion (id, usuario_id, producto_variante_id, estrellas, comentario
 ('OP07', 'U02', 'V11-SW-XL', 5, 'Suéter muy abrigado y suave.'),
 ('OP08', 'U03', 'V1-B-M', 5, 'Repetiría sin duda.'),
 ('OP09', 'U04', 'V12-CP-L', 4, 'Campera con buen corte.'),
-('OP10', 'U05', 'V10-RB-L', 5, 'Remera negra ideal.');
+('OP10', 'U05', 'V10-RB-L', 5, 'Remera negra ideal.'),
+('OP11', 'U06', 'V2-A-M', 4, 'Buena relación precio-calidad.'),
+('OP12', 'U02', 'V3-BE-M', 5, 'El lino es súper fresco, ideal para verano.'),
+('OP13', 'U03', 'V4-CE-L', 5, 'Color celeste hermoso, tela suave.'),
+('OP14', 'U04', 'V1-B-L', 4, 'Clásica blanca, bien terminada.'),
+('OP15', 'U05', 'V7-JN-42', 5, 'Jean cómodo con elastano, recomendado.');
 
 COMMIT;
