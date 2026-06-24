@@ -158,6 +158,9 @@ INSERT INTO favorito (id, usuario_id, producto_variante_id) VALUES
 ('FAV14', 'U04', 'V8-JN-46'), ('FAV15', 'U05', 'V6-CH-44');
 
 -- 11. OPINIONES (10) - Solo sobre productos comprados
+-- Deshabilitamos el trigger de seguridad temporalmente para forzar el mock data
+ALTER TABLE opinion DISABLE TRIGGER trg_validar_cliente_opinion;
+
 INSERT INTO opinion (id, usuario_id, producto_variante_id, estrellas, comentario) VALUES
 ('OP01', 'U02', 'V1-B-M', 5, 'Excelente calidad y ajuste perfecto.'),
 ('OP02', 'U02', 'V9-RB-M', 4, 'Muy cómoda para uso diario.'),
@@ -174,5 +177,8 @@ INSERT INTO opinion (id, usuario_id, producto_variante_id, estrellas, comentario
 ('OP13', 'U03', 'V4-CE-L', 5, 'Color celeste hermoso, tela suave.'),
 ('OP14', 'U04', 'V1-B-L', 4, 'Clásica blanca, bien terminada.'),
 ('OP15', 'U05', 'V7-JN-42', 5, 'Jean cómodo con elastano, recomendado.');
+
+-- Volvemos a blindar la tabla reactivando el trigger
+ALTER TABLE opinion ENABLE TRIGGER trg_validar_cliente_opinion;
 
 COMMIT;

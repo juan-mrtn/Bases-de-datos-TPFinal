@@ -55,7 +55,7 @@ WHERE carrito_id = 'CART-PRUEBA-COMBOS';
 -- 1. Guardar una foto del stock actual de los componentes individuales antes de la compra
 SELECT producto_variante_id, stock_disponible, tipo_item 
 FROM v_stock_actual 
-WHERE producto_variante_id IN ('V1-B-M', 'V9-RB-M', 'C1');
+WHERE producto_variante_id IN ('V1-B-M', 'V2-A-M', 'C1');
 
 -- 2. Añadir prendas individuales al mismo carrito (Ej: 2 unidades de la camisa suelta 'V1-B-M')
 CALL sp_agregar_al_carrito('CART-PRUEBA-COMBOS', 'V1-B-M', 2, FALSE);
@@ -74,20 +74,19 @@ CALL sp_confirmar_pago('USR-PRUEBA-COMBOS');
 -- 6. VERIFICACIÓN DE IMPACTO FINAL: Consultar el nuevo stock neto remanente
 SELECT producto_variante_id, stock_disponible, tipo_item 
 FROM v_stock_actual 
-WHERE producto_variante_id IN ('V1-B-M', 'V9-RB-M', 'C1');
+WHERE producto_variante_id IN ('V1-B-M', 'V2-A-M', 'C1'); -- Corregido: V2-A-M es el componente real
 
 /* ANÁLISIS MATEMÁTICO DE REDUCCIÓN DE STOCK ESPERADO:
   En el carrito teníamos:
-    - 2 Combos (Cada uno consume 1 'V1-B-M' y 1 'V9-RB-M' -> Total combos: 2 de cada una).
+    - 2 Combos "Pack Dupla" (Cada uno consume 1 'V1-B-M' y 1 'V2-A-M' -> Total combos: 2 de cada una).
     - 2 Camisas individuales 'V1-B-M'.
   
   Egresos totales confirmados por la transacción:
-    - Para 'V9-RB-M': Se deben descontar exactamente 2 unidades.
-    - Para 'V1-B-M': Se deben descontar 4 unidades (2 del combo + 2 individuales).
+    - Para 'V2-A-M' (Azul): Se deben descontar exactamente 2 unidades.
+    - Para 'V1-B-M' (Blanca): Se deben descontar 4 unidades (2 del combo + 2 individuales).
   
   RESULTADO ESPERADO EN CONSOLA:
-    - El stock de 'V9-RB-M' debe haber bajado de 46 a 44.
-    - El stock de 'V1-B-M' debe haber bajado en 4 unidades respecto a su estado inicial.
-    - El stock del 'COMBO-URBANO-01' se reajustará de manera automática en la vista 
-      mostrando el nuevo cuello de botella (el stock mínimo remanente entre sus componentes).
-*/
+    - El stock de 'V2-A-M' bajará de 40 a 38.
+    - El stock de 'V1-B-M' bajará a 44.
+    - El stock del combo 'C1' se reajustará mostrando el stock de la variante con menos existencias (38).
+    */
