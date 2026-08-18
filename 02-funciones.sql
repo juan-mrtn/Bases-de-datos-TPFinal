@@ -99,24 +99,30 @@ RETURNS TRIGGER AS $$
 DECLARE
     v_stock_actual INT;
     v_item_combo RECORD;
-    v_combo_id VARCHAR;
 BEGIN
-    SELECT id INTO v_combo_id FROM combo WHERE producto_variante_id = NEW.producto_variante_id;
-
-    IF v_combo_id IS NOT NULL THEN
-        FOR v_item_combo IN (SELECT producto_variante_id, cantidad FROM combo_item WHERE combo_id = v_combo_id) LOOP
+    -- 1. Si lo que se está insertando en el carrito es un COMBO
+    IF NEW.combo_id IS NOT NULL THEN
+        FOR v_item_combo IN (SELECT producto_variante_id, cantidad FROM combo_item WHERE combo_id = NEW.combo_id) LOOP
             v_stock_actual := fn_obtener_stock_real(v_item_combo.producto_variante_id);
+            
             IF v_stock_actual < (v_item_combo.cantidad * NEW.cantidad) THEN
                 RAISE EXCEPTION 'Stock insuficiente en componentes del combo. Variante % disponible: %.', 
                                 v_item_combo.producto_variante_id, v_stock_actual;
             END IF;
         END LOOP;
-    ELSE
+        
+    -- 2. Si lo que se está insertando en el carrito es una VARIANTE INDIVIDUAL
+    ELSIF NEW.producto_variante_id IS NOT NULL THEN
         v_stock_actual := fn_obtener_stock_real(NEW.producto_variante_id);
+        
         IF v_stock_actual < NEW.cantidad THEN
             RAISE EXCEPTION 'No hay stock suficiente para la variante %. Disponible: %', 
                             NEW.producto_variante_id, v_stock_actual;
         END IF;
+        
+    -- 3. Falla de seguridad estructural
+    ELSE
+        RAISE EXCEPTION 'El ítem del carrito debe tener una variante o un combo asociado.';
     END IF;
 
     RETURN NEW;
@@ -303,7 +309,6 @@ BEGIN
             -- 2x1: cada 2 unidades se paga 1. Precio unitario efectivo = (precio_original * (unidades_pagas) / total_unidades)
             -- Para simplificar, se aplica descuento del 50% sobre el precio unitario original.
             -- Nota: Para cantidades impares, la unidad extra se paga al 100%, pero el promedio sigue siendo el mismo descuento.
-            -- Se puede mejorar pero para el TP es suficiente.
             RETURN QUERY SELECT 
                 ROUND(p_precio_original * 0.5, 2),
                 ROUND(p_precio_original * 0.5, 2);

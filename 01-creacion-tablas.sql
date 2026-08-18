@@ -34,7 +34,7 @@ CREATE TYPE estado_pago AS ENUM ('procesando', 'confirmado', 'rechazado');
 CREATE TYPE estado_carrito AS ENUM ('abierto', 'confirmado', 'cancelado');
 CREATE TYPE rol_usuario AS ENUM ('cliente', 'admin');
 
--- CREATE EXTENSION FOR UUID GENERATION (PostgreSQL 13+)
+-- CREATE EXTENSION FOR UUID GENERATION
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- 3. CREATE RELATIONAL DDL TABLES (TOPOLOGICAL ORDER)
 

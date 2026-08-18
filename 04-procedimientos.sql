@@ -116,7 +116,7 @@ BEGIN
 END;
 $$;
 
--- sp_agregar_al_carrito: Añade ítems al carrito resolviendo polimorfismo sin usar ON CONFLICT
+-- sp_agregar_al_carrito: Añade ítems al carrito resolviendo polimorfismo.
 CREATE OR REPLACE PROCEDURE sp_agregar_al_carrito(
     p_carrito_id VARCHAR,
     p_item_id VARCHAR,
@@ -137,7 +137,7 @@ BEGIN
     IF p_es_combo THEN
         SELECT precio INTO v_precio_original FROM combo WHERE id = p_item_id;
         IF NOT FOUND THEN RAISE EXCEPTION 'El combo % no existe.', p_item_id; END IF;
-        -- Los combos no tienen promociones directas (se puede extender si se desea)
+        -- Los combos no tienen promociones directas
         v_promocion_id := NULL;
         v_precio_final := v_precio_original;
         v_descuento_unitario := 0;
@@ -181,7 +181,6 @@ BEGIN
     -- 3. Insertar o actualizar con los datos de promoción
     IF v_existe_en_carrito THEN
         -- Actualizar: sumar cantidad, pero mantener precio y descuento originales
-        -- (podría recalcularse, pero se asume que los precios no cambian durante la sesión)
         IF p_es_combo THEN
             UPDATE carrito_item 
             SET cantidad = cantidad + p_cantidad
